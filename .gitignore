@@ -1,0 +1,28 @@
+# --- Secrets (jamais versionnés)
+.env
+.env.sh
+.env.*
+!.env.sh.example
+*.xcconfig.local
+Secrets.xcconfig
+
+# --- Builds / caches
+DerivedData/
+build/
+.gradle/
+.kotlin/
+local.properties
+*.xcresult
+*.ipa
+*.dSYM.zip
+
+# --- Xcode
+xcuserdata/
+*.xcuserstate
+Pods/
+.swiftpm/
+
+# --- Divers
+.DS_Store
+*.log
+*.diff
