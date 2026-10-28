@@ -17,7 +17,20 @@ struct StockITApp: App {
         }
         #endif
         IosStockIt.shared.setup(deviceName: "Apple \(UIDevice.current.model) iOS \(UIDevice.current.systemVersion)")
-        StockItConfig.shared.testMode = UserDefaults.standard.bool(forKey: "testMode")
+        // Mode test : activé par un ADMIN pour sa session uniquement (jamais restauré au lancement).
+        StockItConfig.shared.testMode = false
+        UserDefaults.standard.removeObject(forKey: "testMode")
+        #if DEBUG
+        // Accès de secours local : builds Debug seulement. Aucun compte par défaut — les tests UI
+        // fournissent leur propre compte (mot de passe aléatoire par exécution) via l'environnement.
+        StockItConfig.shared.localLoginEnabled = true
+        let env = ProcessInfo.processInfo.environment
+        if let u = env["STOCKIT_UITEST_USER"], let p = env["STOCKIT_UITEST_PASSWORD"] {
+            let role = env["STOCKIT_UITEST_ROLE"] ?? "ADMIN"
+            let repo = StockIt.shared.repository
+            Task { _ = try? await repo.provisionLocalUser(username: u, password: p, role: role) }
+        }
+        #endif
         AppLanguage.applyToShared()
         NotificationService.requestPermission()
     }

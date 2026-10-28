@@ -1,5 +1,4 @@
 import SwiftUI
-import LocalAuthentication
 import Shared
 
 struct SplashView: View {
@@ -18,14 +17,13 @@ struct SplashView: View {
     }
 }
 
-/// LoginActivity : Vista SSO + accès de secours (démo hors ligne, builds Debug).
+/// LoginActivity : Vista SSO + accès de secours local (builds Debug uniquement, comptes provisionnés).
 struct LoginView: View {
     @EnvironmentObject var app: AppState
     @State private var username = ""
     @State private var password = ""
     @State private var loading = false
     @State private var ssoStatus: String?
-    @State private var profiles: [User] = []
 
     var body: some View {
         ScrollView {
@@ -60,23 +58,13 @@ struct LoginView: View {
             .padding()
         }
         .background(Color.vistaBg.ignoresSafeArea())
-        .task { await loadProfiles() }
     }
 
+    #if DEBUG
     private var localFallback: some View {
         VistaCard {
-            Text("Qui êtes-vous ?").font(.headline)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                ForEach(profiles) { u in
-                    Button { Task { await biometricLogin(u) } } label: {
-                        VStack {
-                            avatar(u.username).frame(width: 56, height: 56).clipShape(Circle())
-                            Text(u.username).font(.caption).foregroundColor(.primary)
-                        }
-                    }
-                }
-            }
-            Text("Accès de secours (démo hors ligne)").font(.caption).foregroundColor(.secondary)
+            Text("Accès de secours (démo hors ligne)").font(.headline)
+            Text("Build Debug uniquement · comptes locaux provisionnés").font(.caption).foregroundColor(.secondary)
             // Accès de secours local : pas de proposition iCloud « Enregistrer le mot de passe ».
             TextField("Nom d'utilisateur", text: $username)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -92,28 +80,7 @@ struct LoginView: View {
             .buttonStyle(PrimaryButtonStyle(color: .vistaNavy))
         }
     }
-
-    @ViewBuilder private func avatar(_ name: String) -> some View {
-        let asset = "avatar_" + name.lowercased()
-        if UIImage(named: asset) != nil {
-            Image(asset).resizable().scaledToFill()
-        } else {
-            ZStack {
-                Color.vistaBlue
-                Text(String(name.prefix(1)).uppercased()).font(.title2.bold()).foregroundColor(.white)
-            }
-        }
-    }
-
-    private func loadProfiles() async {
-        var list = (try? await app.repo.getUsers()) ?? []
-        if list.count < 5 {
-            _ = try? await app.repo.login(username: "admin", password: "admin123")
-            app.repo.logout()
-            list = (try? await app.repo.getUsers()) ?? []
-        }
-        profiles = list
-    }
+    #endif
 
     private func sso() async {
         loading = true; ssoStatus = nil
@@ -121,32 +88,16 @@ struct LoginView: View {
         defer { loading = false; app.signingIn = false }
         do {
             let p = try await AuthService.shared.signIn()
-            let u = try await app.repo.loginSso(username: p.username, role: p.role)
+            let u = try await app.repo.loginSso(subject: p.subject, username: p.username, role: p.role)
             app.didLogin(u)
         } catch {
             ssoStatus = L("Erreur SSO : %@", String(describing: error.localizedDescription))
         }
     }
 
-    private func biometricLogin(_ u: User) async {
-        let ctx = LAContext()
-        var err: NSError?
-        let policy: LAPolicy = .deviceOwnerAuthentication
-        if ctx.canEvaluatePolicy(policy, error: &err) {
-            do {
-                let ok = try await ctx.evaluatePolicy(policy, localizedReason: L("Connexion pour %@", String(describing: u.username)))
-                if ok { await localLogin(u.username, u.password) }
-            } catch {
-                app.show(L("Erreur empreinte : %@", String(describing: error.localizedDescription)), style: .urgent)
-            }
-        } else {
-            await localLogin(u.username, u.password)
-        }
-    }
-
     private func localLogin(_ u: String, _ p: String) async {
         loading = true
-        defer { loading = false }
+        defer { loading = false; password = "" }
         if let user = try? await app.repo.login(username: u, password: p) {
             app.session.saveLocalSession(username: user.username, role: user.role)
             app.didLogin(user)

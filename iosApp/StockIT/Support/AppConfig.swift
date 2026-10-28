@@ -7,7 +7,12 @@ enum AppConfig {
     static func applyInfoPlistOverrides() {
         guard let dict = Bundle.main.object(forInfoDictionaryKey: "StockITConfig") as? [String: Any] else { return }
         for (k, v) in dict {
-            if let s = v as? String { StockItConfig.shared.applyOverride(key: k, value: s) }
+            guard let s = v as? String else { continue }
+            #if !DEBUG
+            // Un Info.plist est lisible en clair dans l'IPA : aucune clé / aucun token n'y est accepté en Release.
+            if isSecretKey(k) { continue }
+            #endif
+            StockItConfig.shared.applyOverride(key: k, value: s)
         }
         // Backend réclamations : sur simulateur, localhost remplace 10.0.2.2 (émulateur Android).
         #if targetEnvironment(simulator)
@@ -15,6 +20,11 @@ enum AppConfig {
             StockItConfig.shared.applyOverride(key: "STOCKIT_API_BASE_URL", value: "http://localhost/api/")
         }
         #endif
+    }
+
+    static func isSecretKey(_ k: String) -> Bool {
+        ["KEY", "TOKEN", "SECRET", "PASSWORD"].contains { k.uppercased().contains($0) }
+            || k.uppercased().hasSuffix("WEBHOOK_URL")
     }
 
     /// Valeur d'Info.plist si renseignée, sinon celle de .env.sh (module partagé).

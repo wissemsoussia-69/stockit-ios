@@ -34,10 +34,14 @@ struct MoreView: View {
                 NavigationLink { AIQualityView() } label: { Label("Qualité de l'IA", systemImage: "gauge.with.dots.needle.67percent") }
                 NavigationLink { AIChatView() } label: { Label("Assistant IA Vista", systemImage: "sparkles") }
                 NavigationLink { LeaderboardView() } label: { Label("Classement / Leaderboard", systemImage: "trophy") }
-                NavigationLink { AuditView() } label: { Label("Audit Actions", systemImage: "list.bullet.clipboard") }
+                if app.canEditStock {
+                    NavigationLink { AuditView() } label: { Label("Audit Actions", systemImage: "list.bullet.clipboard") }
+                }
             }
             Section("Administration") {
-                NavigationLink { UsersView() } label: { Label("Utilisateurs", systemImage: "person.3") }
+                if app.isAdmin {
+                    NavigationLink { UsersView() } label: { Label("Utilisateurs", systemImage: "person.3") }
+                }
                 NavigationLink { ClaimsView() } label: { Label("Réclamation", systemImage: "exclamationmark.bubble") }
                 NavigationLink { MonthlyReportView() } label: { Label("Rapport mensuel IA (PDF)", systemImage: "doc.richtext") }
             }
@@ -83,7 +87,7 @@ struct ProfileView: View {
 struct SettingsView: View {
     @EnvironmentObject var app: AppState
     @AppStorage("darkMode") private var darkMode = false
-    @AppStorage("testMode") private var testMode = false
+    @State private var testMode = StockItConfig.shared.testMode
     @AppStorage(AppLanguage.storageKey) private var language = AppLanguage.current.rawValue
     @State private var pending: Int64 = 0
     @State private var slackTesting = false
@@ -99,12 +103,19 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("languagePicker")
             }
-            Section {
-                Toggle("🧪 Mode test", isOn: $testMode)
-                    .onChange(of: testMode) { v in StockItConfig.shared.testMode = v }
-                    .accessibilityIdentifier("testModeToggle")
-            } footer: {
-                Text("Aucun ticket Jira créé, aucun message Slack, aucun e-mail ni webhook n8n. Claude et la lecture des tickets restent actifs. Les changements de stock restent enregistrés sur le téléphone.")
+            if app.isAdmin {
+                Section {
+                    Toggle("🧪 Mode test", isOn: $testMode)
+                        .onChange(of: testMode) { v in
+                            Task {
+                                let ok = (try? await app.repo.setTestMode(enabled: v))?.boolValue ?? false
+                                if !ok { testMode = StockItConfig.shared.testMode }
+                            }
+                        }
+                        .accessibilityIdentifier("testModeToggle")
+                } footer: {
+                    Text("Aucun ticket Jira créé, aucun message Slack, aucun e-mail ni webhook n8n. Claude et la lecture des tickets restent actifs. Les changements de stock restent enregistrés sur le téléphone. Réservé aux administrateurs, tracé dans l'audit et désactivé à la déconnexion.")
+                }
             }
             Section("Intégrations") {
                 status("Cimpress Gateway (IA)", StockItConfig.shared.isCimpressConfigured)
@@ -357,7 +368,7 @@ struct ShippingView: View {
                         Spacer()
                         Menu {
                             ForEach(statuses, id: \.self) { s in
-                                Button(LV(s)) { Task { try? await app.repo.updateShippingOrder(o: o.withStatus(status: s, trackingNumber: o.trackingNumber)); await load() } }
+                                Button(LV(s)) { Task { _ = try? await app.repo.updateShippingOrder(o: o.withStatus(status: s, trackingNumber: o.trackingNumber)); await load() } }
                             }
                         } label: { Pill(text: LV(o.status), color: .vistaBlue) }
                     }
@@ -373,7 +384,7 @@ struct ShippingView: View {
             .deleteDisabled(!app.isAdmin)
         }
         .navigationTitle("Expéditions")
-        .toolbar { Button { adding = true } label: { Image(systemName: "plus") } }
+        .toolbar { if app.canAdjustStock { Button { adding = true } label: { Image(systemName: "plus") } } }
         .task { await load() }
         .alert("Nouvelle expédition", isPresented: $adding) {
             TextField("Client", text: $customer)
@@ -382,7 +393,7 @@ struct ShippingView: View {
             TextField("N° ticket", text: $ticket)
             Button("Créer") {
                 Task {
-                    if !customer.isEmpty { try? await app.repo.addShippingOrder(customer: customer, items: itemsText, address: address, ticket: ticket) }
+                    if !customer.isEmpty { _ = try? await app.repo.addShippingOrder(customer: customer, items: itemsText, address: address, ticket: ticket) }
                     customer = ""; await load()
                 }
             }
@@ -398,6 +409,8 @@ struct ReportsView: View {
     @EnvironmentObject var app: AppState
     @State private var r: ReportData?
     @State private var csvURL: URL?
+    private let csvFile = FileManager.default.temporaryDirectory
+        .appendingPathComponent("StockIT_inventaire_\(UUID().uuidString.prefix(8)).csv")
 
     var body: some View {
         ScrollView {
@@ -433,11 +446,13 @@ struct ReportsView: View {
         .task(id: app.dataVersion) {
             r = try? await app.repo.getReportData()
             if let csv = try? await app.repo.buildStockCsv() {
-                let url = FileManager.default.temporaryDirectory.appendingPathComponent("StockIT_inventaire.csv")
-                try? csv.write(to: url, atomically: true, encoding: .utf8)
-                csvURL = url
+                try? csv.write(to: csvFile, atomically: true, encoding: .utf8)
+                try? (csvFile as NSURL).setResourceValue(URLFileProtection.complete, forKey: .fileProtectionKey)
+                csvURL = csvFile
             }
         }
+        // Le fichier d'export (inventaire complet) ne reste pas dans tmp/ après usage.
+        .onDisappear { try? FileManager.default.removeItem(at: csvFile); csvURL = nil }
     }
 }
 

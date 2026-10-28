@@ -541,3 +541,9 @@
 "🧠 [1/3] Lecture du texte (Apple Vision)…" = "🧠 [1/3] Reading text (Apple Vision)…";
 "🧪 MODE TEST — aucune action Jira / Slack / e-mail réelle" = "🧪 TEST MODE — no real Jira / Slack / e-mail actions";
 "🧪 Mode test" = "🧪 Test mode";
+
+/* Sécurité (threat model) */
+"Jeton d'identité refusé (%@)" = "Identity token rejected (%@)";
+"Permission refusée (lecture seule)" = "Permission denied (read-only)";
+"Build Debug uniquement · comptes locaux provisionnés" = "Debug builds only · provisioned local accounts";
+"Aucun ticket Jira créé, aucun message Slack, aucun e-mail ni webhook n8n. Claude et la lecture des tickets restent actifs. Les changements de stock restent enregistrés sur le téléphone. Réservé aux administrateurs, tracé dans l'audit et désactivé à la déconnexion." = "No Jira ticket, no Slack message, no e-mail or n8n webhook. Claude and ticket reading stay active. Stock changes are still saved on the phone. Administrators only, recorded in the audit log and turned off at sign-out.";

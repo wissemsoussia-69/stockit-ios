@@ -5,6 +5,20 @@ import UIKit
 
 /// Caméra (équivalent CameraX) : aperçu, capture photo, torche, zoom,
 /// et analyse vidéo optionnelle (scan code-barres en rafale).
+/// Bornes des entrées caméra / photothèque (threat model T-15, T-20, T-22).
+enum CameraLimits {
+    static let inventorySymbologies: [AVMetadataObject.ObjectType] = [
+        .ean8, .ean13, .upce, .code39, .code93, .code128, .itf14, .interleaved2of5, .qr, .dataMatrix, .pdf417,
+    ]
+    /// Photo importée : au-delà, refusée (mémoire, coût d'envoi à l'IA).
+    static let maxImportedImageBytes = 25 * 1024 * 1024
+    /// Tests UI (Debug) : la photo injectée doit venir d'un dossier temporaire, jamais d'un chemin arbitraire.
+    static func isTestPhotoPathAllowed(_ path: String) -> Bool {
+        let p = URL(fileURLWithPath: path).standardizedFileURL.path
+        return [NSTemporaryDirectory(), "/tmp/", "/private/tmp/"].contains { p.hasPrefix(URL(fileURLWithPath: $0).standardizedFileURL.path) }
+    }
+}
+
 final class CameraService: NSObject, ObservableObject {
     @Published var authorized: Bool?
     @Published var torchOn = false
@@ -60,7 +74,9 @@ final class CameraService: NSObject, ObservableObject {
                 if barcodes, self.session.canAddOutput(self.metadataOutput) {
                     self.session.addOutput(self.metadataOutput)
                     self.metadataOutput.setMetadataObjectsDelegate(self, queue: .main)
-                    self.metadataOutput.metadataObjectTypes = self.metadataOutput.availableMetadataObjectTypes
+                    // Symbologies réellement utilisées pour l'inventaire (étiquettes produits, cartons, asset tags).
+                    self.metadataOutput.metadataObjectTypes = CameraLimits.inventorySymbologies
+                        .filter { self.metadataOutput.availableMetadataObjectTypes.contains($0) }
                 }
                 self.session.commitConfiguration()
                 self.configured = true
@@ -216,7 +232,8 @@ struct CameraScreen<Overlay: View>: View {
                     }
                     #if DEBUG
                     // Tests automatiques uniquement : photo injectée via l'environnement STOCKIT_TEST_PHOTO.
-                    if let path = ProcessInfo.processInfo.environment["STOCKIT_TEST_PHOTO"], onPickPhoto != nil {
+                    if let path = ProcessInfo.processInfo.environment["STOCKIT_TEST_PHOTO"], onPickPhoto != nil,
+                       CameraLimits.isTestPhotoPathAllowed(path) {
                         Button("Photo de test") {
                             if let d = FileManager.default.contents(atPath: path) { onPickPhoto?(d) }
                         }
@@ -241,6 +258,7 @@ struct CameraScreen<Overlay: View>: View {
             guard let item else { return }
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
+                   data.count <= CameraLimits.maxImportedImageBytes,
                    let img = UIImage(data: data)?.normalized(),
                    let jpeg = img.jpegData(compressionQuality: 0.9) {
                     onPickPhoto?(jpeg)

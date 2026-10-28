@@ -20,6 +20,8 @@ final class AppState: ObservableObject {
 
     var isAdmin: Bool { user?.isAdmin ?? false }
     var canEditStock: Bool { user?.canEditStock ?? false }
+    /// Mouvements de stock (+/−, sorties, réceptions) : ADMIN, MANAGER, TECHNICIEN. USER = lecture seule.
+    var canAdjustStock: Bool { user?.canAdjustStock ?? false }
 
     /// Vrai pendant l'ouverture de la page Okta (l'app passe brièvement en arrière-plan).
     var signingIn = false
@@ -38,7 +40,9 @@ final class AppState: ObservableObject {
     /// Appelé quand l'app passe en arrière-plan : la session est fermée immédiatement.
     func lockOnBackground() {
         guard phase == .main, !signingIn else { return }
-        AuthService.shared.clearLocalCredentials()
+        StockIt.shared.setAccessToken(token: nil)
+        let auth = AuthService.shared
+        Task.detached(priority: .utility) { await auth.signOut() } // révoque puis purge le Keychain
         session.clear()
         repo.logout()
         user = nil

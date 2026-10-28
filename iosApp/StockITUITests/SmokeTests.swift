@@ -1,6 +1,24 @@
 import XCTest
 
-/// Test de fumée : connexion locale (admin/admin123) puis parcours des onglets principaux.
+/// Compte local de test : provisionné au lancement (build Debug) avec un mot de passe aléatoire
+/// propre à chaque exécution — aucun identifiant n'est écrit dans le code ni partagé entre machines.
+enum TestAccount {
+    static let user = "uitest-admin"
+    static let password = "UiT-" + UUID().uuidString
+}
+
+extension XCUIApplication {
+    /// À appeler avant `launch()`.
+    @discardableResult
+    func withTestAccount(role: String = "ADMIN") -> XCUIApplication {
+        launchEnvironment["STOCKIT_UITEST_USER"] = TestAccount.user
+        launchEnvironment["STOCKIT_UITEST_PASSWORD"] = TestAccount.password
+        launchEnvironment["STOCKIT_UITEST_ROLE"] = role
+        return self
+    }
+}
+
+/// Test de fumée : connexion locale (compte de test provisionné) puis parcours des onglets principaux.
 final class SmokeTests: XCTestCase {
     func shot(_ app: XCUIApplication, _ name: String) {
         let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
@@ -13,6 +31,7 @@ final class SmokeTests: XCTestCase {
             if alert.buttons["Allow"].exists { alert.buttons["Allow"].tap(); return true }
             return false
         }
+        app.withTestAccount()
         app.launch()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         for label in ["Autoriser", "Allow"] where springboard.buttons[label].waitForExistence(timeout: 3) {
@@ -21,9 +40,9 @@ final class SmokeTests: XCTestCase {
         let user = app.textFields["Nom d'utilisateur"]
         XCTAssertTrue(user.waitForExistence(timeout: 15))
         shot(app, "01_login")
-        user.tap(); user.typeText("admin")
+        user.tap(); user.typeText(TestAccount.user)
         let pwd = app.secureTextFields["Mot de passe"]
-        pwd.tap(); pwd.typeText("admin123")
+        pwd.tap(); pwd.typeText(TestAccount.password)
         app.buttons["Connexion classique"].tap()
 
         XCTAssertTrue(app.navigationBars["Tableau de bord"].waitForExistence(timeout: 15))

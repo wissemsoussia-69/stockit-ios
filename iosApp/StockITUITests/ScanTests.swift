@@ -16,12 +16,13 @@ final class ScanTests: XCTestCase {
     }
 
     func setUpSession() {
+        app.withTestAccount()
         app.launch()
         for l in ["Autoriser", "Allow"] where springboard.buttons[l].waitForExistence(timeout: 2) { springboard.buttons[l].tap() }
         let user = app.textFields["Nom d'utilisateur"]
         XCTAssertTrue(user.waitForExistence(timeout: 15))
-        user.tap(); user.typeText("admin")
-        let pwd = app.secureTextFields["Mot de passe"]; pwd.tap(); pwd.typeText("admin123")
+        user.tap(); user.typeText(TestAccount.user)
+        let pwd = app.secureTextFields["Mot de passe"]; pwd.tap(); pwd.typeText(TestAccount.password)
         app.buttons["Connexion classique"].tap()
         XCTAssertTrue(app.navigationBars["Tableau de bord"].waitForExistence(timeout: 15))
         // Mode test ON

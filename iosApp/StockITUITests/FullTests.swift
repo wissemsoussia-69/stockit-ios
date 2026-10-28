@@ -14,9 +14,9 @@ final class FullTests: XCTestCase {
     func login() {
         let user = app.textFields["Nom d'utilisateur"]
         XCTAssertTrue(user.waitForExistence(timeout: 15))
-        user.tap(); user.typeText("admin")
+        user.tap(); user.typeText(TestAccount.user)
         let pwd = app.secureTextFields["Mot de passe"]
-        pwd.tap(); pwd.typeText("admin123")
+        pwd.tap(); pwd.typeText(TestAccount.password)
         app.buttons["Connexion classique"].tap()
         XCTAssertTrue(app.navigationBars["Tableau de bord"].waitForExistence(timeout: 15))
     }
@@ -31,6 +31,7 @@ final class FullTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = true
         app = XCUIApplication()
+        app.withTestAccount()
         app.launch()
         dismissSystemAlerts()
     }
@@ -43,9 +44,37 @@ final class FullTests: XCTestCase {
         XCTAssertTrue(app.buttons["Se connecter avec Vista SSO"].waitForExistence(timeout: 10),
                       "Après avoir quitté l'app, l'écran de connexion doit réapparaître")
         shot("lock_after_background")
-        app.terminate(); app.launch()
+        app.terminate(); app.withTestAccount(); app.launch()
         XCTAssertTrue(app.buttons["Se connecter avec Vista SSO"].waitForExistence(timeout: 10),
                       "Au relancement, aucune session ne doit être restaurée")
+    }
+
+    /// Threat model T-01 : l'ancien compte admin/admin123 n'ouvre plus aucune session.
+    func test0_LegacyAdminBackdoorIsRejected() {
+        let user = app.textFields["Nom d'utilisateur"]
+        XCTAssertTrue(user.waitForExistence(timeout: 15))
+        user.tap(); user.typeText("admin")
+        let pwd = app.secureTextFields["Mot de passe"]
+        pwd.tap(); pwd.typeText("admin123")
+        app.buttons["Connexion classique"].tap()
+        XCTAssertFalse(app.navigationBars["Tableau de bord"].waitForExistence(timeout: 8), "admin/admin123 must be refused")
+        XCTAssertTrue(app.buttons["Connexion classique"].exists)
+    }
+
+    /// Threat model T-04 / T-16 : un compte en lecture seule ne voit ni l'audit, ni les utilisateurs, ni le mode test.
+    func test4_ReadOnlyUserSeesNoAdminScreens() {
+        app.terminate()
+        app.withTestAccount(role: "USER")
+        app.launch()
+        login()
+        app.tabBars.buttons["Plus"].tap()
+        XCTAssertTrue(app.navigationBars["Plus"].waitForExistence(timeout: 10))
+        for _ in 0..<4 { app.swipeUp() }
+        XCTAssertFalse(app.staticTexts["Audit Actions"].exists)
+        XCTAssertFalse(app.staticTexts["Utilisateurs"].exists)
+        app.staticTexts["Paramètres"].tap()
+        XCTAssertTrue(app.navigationBars["Paramètres"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["testModeToggle"].exists)
     }
 
     func test2_StockActions() {
@@ -118,7 +147,7 @@ final class FullTests: XCTestCase {
         openMore("Audit Actions"); sleep(1)
         XCTAssertTrue(app.staticTexts["LOGIN"].firstMatch.waitForExistence(timeout: 5)); shot("audit"); back()
         openMore("Utilisateurs"); sleep(1)
-        XCTAssertTrue(app.staticTexts["Nadhem"].waitForExistence(timeout: 5)); shot("users"); back()
+        XCTAssertTrue(app.staticTexts[TestAccount.user].waitForExistence(timeout: 5)); shot("users"); back()
 
         openMore("Réclamation"); sleep(1)
         app.navigationBars["Centre de Réclamations"].buttons.element(boundBy: 1).tap()
