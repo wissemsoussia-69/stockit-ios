@@ -1,0 +1,15 @@
+# Secret scanning (threat model T-24). Run: gitleaks git -v   (or via pre-commit, see .pre-commit-config.yaml)
+title = "StockIT iOS"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "stockit-env-assignment"
+description = "Secret value assigned in an env file (.env.sh style)"
+regex = '''(?i)export\s+(?:[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD))\s*=\s*["']?([A-Za-z0-9_\-\.=/+]{12,})'''
+secretGroup = 1
+
+[allowlist]
+description = "Template and tests"
+paths = ['''\.env\.sh\.example$''', '''shared/src/commonTest/''', '''THREAT_MODEL\.md$''']

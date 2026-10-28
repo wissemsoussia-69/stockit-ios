@@ -30,14 +30,15 @@ final class LanguageAuditTests: XCTestCase {
         app = XCUIApplication()
         app.launchEnvironment["STOCKIT_RESET_LANGUAGE"] = "en"
         app.launchEnvironment["STOCKIT_TEST_PHOTO"] = "/tmp/scan_mouse.jpg"
+        app.withTestAccount()
         app.launch()
         let sb = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         for l in ["Autoriser", "Allow"] where sb.buttons[l].waitForExistence(timeout: 2) { sb.buttons[l].tap() }
         dump("login")
         let user = app.textFields.element(boundBy: 0)
         XCTAssertTrue(user.waitForExistence(timeout: 15))
-        user.tap(); user.typeText("admin")
-        let pwd = app.secureTextFields.element(boundBy: 0); pwd.tap(); pwd.typeText("admin123")
+        user.tap(); user.typeText(TestAccount.user)
+        let pwd = app.secureTextFields.element(boundBy: 0); pwd.tap(); pwd.typeText(TestAccount.password)
         app.buttons["Standard login"].tap()
         XCTAssertTrue(app.navigationBars["Dashboard"].waitForExistence(timeout: 15))
         dump("dashboard")

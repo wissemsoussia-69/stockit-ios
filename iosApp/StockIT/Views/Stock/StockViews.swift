@@ -66,7 +66,7 @@ struct StockListView: View {
 
     private func adjust(_ p: Product, _ d: Int32) async {
         guard (try? await app.repo.updateQuantity(product: p, delta: d, syncAssets: true)) != nil else {
-            app.show(L("Connexion requise"), style: .urgent); return
+            app.show(app.canAdjustStock ? L("Mise à jour du stock impossible.") : L("Permission refusée (lecture seule)"), style: .urgent); return
         }
         app.dataChanged()
     }

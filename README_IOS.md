@@ -27,7 +27,6 @@ iosApp/        Application SwiftUI
 | Auth0 Android                   | Auth0.swift (Keychain)                      |
 | iText PDF                       | UIGraphicsPDFRenderer                       |
 | MPAndroidChart                  | Swift Charts                                |
-| BiometricPrompt                 | Face ID / Touch ID (LocalAuthentication)    |
 | AppWidget                       | WidgetKit                                   |
 
 ## Prérequis
@@ -70,15 +69,24 @@ Dans Xcode :
    La phase « Compile Kotlin (shared) » construit automatiquement le framework partagé
    (le premier build prend quelques minutes).
 
-En mode Debug, l'écran de connexion propose l'accès de secours hors ligne
-(`admin` / `admin123`, ou un profil de l'équipe + Face ID).
+En mode Debug uniquement, l'écran de connexion propose un accès de secours local. Aucun compte n'existe
+par défaut : les tests UI créent leur propre compte (mot de passe aléatoire à chaque exécution) via les
+variables `STOCKIT_UITEST_USER` / `STOCKIT_UITEST_PASSWORD` / `STOCKIT_UITEST_ROLE`. En Release, seule la
+connexion Vista SSO est possible. Voir [SECURITY.md](SECURITY.md).
 
 ## Tests
 
 ```bash
 ./gradlew :shared:testAndroidHostTest           # tests de la logique partagée (JVM)
 ./gradlew :shared:iosSimulatorArm64Test         # mêmes tests sur iOS (nécessite Xcode)
+STOCKIT_LIVE=1 ./gradlew :shared:testAndroidHostTest               # + lecture réelle Jira Assets
+STOCKIT_LIVE=1 STOCKIT_LIVE_WRITE=1 ./gradlew :shared:testAndroidHostTest  # + écritures (schéma de test !)
 ```
+
+Les dépendances Gradle sont vérifiées (`gradle/verification-metadata.xml`). Après un changement de
+version : `./gradlew --write-verification-metadata sha256 :shared:testAndroidHostTest :shared:iosSimulatorArm64Test
+:shared:linkDebugFrameworkIosSimulatorArm64 :shared:linkReleaseFrameworkIosArm64 :shared:linkDebugFrameworkIosArm64`
+puis relire le diff.
 
 ## Différences avec Android
 

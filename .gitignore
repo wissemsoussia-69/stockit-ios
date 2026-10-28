@@ -5,6 +5,21 @@
 !.env.sh.example
 *.xcconfig.local
 Secrets.xcconfig
+# Signature / identifiants (threat model T-24)
+*.p12
+*.p8
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.jks
+*.keystore
+GoogleService-Info.plist
+google-services.json
+AuthKey_*.p8
+fastlane/report.xml
+fastlane/README.md
 
 # --- Builds / caches
 DerivedData/

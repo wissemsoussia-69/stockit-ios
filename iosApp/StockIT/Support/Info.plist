@@ -42,7 +42,6 @@
 			<array>
 				<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 				<string>com.example.stockit</string>
-				<string>stockit</string>
 			</array>
 		</dict>
 	</array>
@@ -57,10 +56,6 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>StockIT utilise la caméra pour scanner les équipements, factures, étiquettes et codes-barres.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>StockIT utilise Face ID pour sécuriser la connexion.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>StockIT peut enregistrer les rapports PDF.</string>
 	<key>StockITConfig</key>
 	<dict/>
 	<key>UILaunchScreen</key>

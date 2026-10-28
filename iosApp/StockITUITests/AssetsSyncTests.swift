@@ -5,13 +5,14 @@ final class AssetsSyncTests: XCTestCase {
     func testInventoryMatchesJiraAssets() {
         let app = XCUIApplication()
         app.launchEnvironment["STOCKIT_RESET_LANGUAGE"] = "fr"
+        app.withTestAccount()
         app.launch()
         let sb = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         for l in ["Autoriser", "Allow"] where sb.buttons[l].waitForExistence(timeout: 2) { sb.buttons[l].tap() }
         let user = app.textFields["Nom d'utilisateur"]
         XCTAssertTrue(user.waitForExistence(timeout: 15))
-        user.tap(); user.typeText("admin")
-        let pwd = app.secureTextFields["Mot de passe"]; pwd.tap(); pwd.typeText("admin123")
+        user.tap(); user.typeText(TestAccount.user)
+        let pwd = app.secureTextFields["Mot de passe"]; pwd.tap(); pwd.typeText(TestAccount.password)
         app.buttons["Connexion classique"].tap()
         XCTAssertTrue(app.navigationBars["Tableau de bord"].waitForExistence(timeout: 15))
         app.tabBars.buttons["Stock"].tap()
